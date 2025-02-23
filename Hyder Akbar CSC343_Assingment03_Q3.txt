@@ -1,0 +1,70 @@
+#include <iostream>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <cstdlib>
+#include <limits>
+#include <climits>
+
+using namespace std;
+
+int main() {
+    
+    // Create an array with 20 elements within the range of [0,99]
+    int arr[20];
+    
+    srand(time(NULL)); 
+    
+    for (int i = 0; i < 20; i++) {
+        arr[i] = rand() % 100; 
+    }
+    
+    // Pipe creation
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork failed");
+        exit(EXIT_FAILURE);
+        
+        // Child process
+    } 
+    else if (pid == 0) { 
+        close(pipefd[0]); 
+        int min_second_half = INT_MAX;
+        
+        for (int i = 10; i < 20; i++) {
+            min_second_half = min(min_second_half, arr[i]);
+        }
+        write(pipefd[1], &min_second_half, sizeof(int));
+        close(pipefd[1]);
+        exit(0);
+        
+        // Parrent Process
+    } 
+    else { 
+        close(pipefd[1]); 
+        int min_first_half = INT_MAX;
+        
+        for (int i = 0; i < 10; i++) {
+            min_first_half = min(min_first_half, arr[i]);
+        }
+
+        int child_min;
+        read(pipefd[0], &child_min, sizeof(int));
+        close(pipefd[0]);
+
+        // Find overall minimum
+        int min_overall = min(min_first_half, child_min); 
+
+        cout << "Parent process (PID: " << getpid() << ") - Minimum in first half: " << min_first_half << endl;
+        cout << "Child process (PID: " << pid << ") - Minimum in second half: " << child_min << endl;
+        cout << "Overall minimum: " << min_overall << endl;
+    }
+
+    return 0;
+}
